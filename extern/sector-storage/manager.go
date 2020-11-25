@@ -319,13 +319,15 @@ func (m *Manager) AddPiece(ctx context.Context, sector storage.SectorRef, existi
 	}
 
 	var selector WorkerSelector
+	log.Debugf("WorkerSelector 参数 %+v", selector)
+	log.Debugf("existingPieces 参数 %+v", existingPieces)
 	var err error
 	if len(existingPieces) == 0 { // new
 		selector = newAllocSelector(m.index, storiface.FTUnsealed, storiface.PathSealing)
 	} else { // use existing
 		selector = newExistingSelector(m.index, sector.ID, storiface.FTUnsealed, false)
 	}
-
+	log.Debugf("WorkerSelector 参数 %+v", selector)
 	var out abi.PieceInfo
 	err = m.sched.Schedule(ctx, sector, sealtasks.TTAddPiece, selector, schedNop, func(ctx context.Context, w Worker) error {
 		p, err := m.waitSimpleCall(ctx)(w.AddPiece(ctx, sector, existingPieces, sz, r))
@@ -423,7 +425,7 @@ func (m *Manager) SealPreCommit2(ctx context.Context, sector storage.SectorRef, 
 		return storage.SectorCids{}, xerrors.Errorf("acquiring sector lock: %w", err)
 	}
 
-	selector := newExistingSelector(m.index, sector.ID, storiface.FTCache|storiface.FTSealed, false)
+	selector := newExistingSelector(m.index, sector.ID, storiface.FTCache|storiface.FTSealed, false) //避免拉数据453
 
 	err = m.sched.Schedule(ctx, sector, sealtasks.TTPreCommit2, selector, m.schedFetch(sector, storiface.FTCache|storiface.FTSealed, storiface.PathSealing, storiface.AcquireMove), func(ctx context.Context, w Worker) error {
 		err := m.startWork(ctx, w, wk)(w.SealPreCommit2(ctx, sector, phase1Out))

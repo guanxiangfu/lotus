@@ -55,8 +55,13 @@ func (a *activeResources) canHandleRequest(needRes Resources, wid WorkerID, call
 
 	maxNeedMem := res.MemReserved + a.memUsedMax + needRes.MaxMemory + needRes.BaseMinMemory
 
-	if maxNeedMem > res.MemSwap+res.MemPhysical {
-		log.Debugf("sched: not scheduling on worker %d for %s; not enough virtual memory - need: %dM, have %dM", wid, caller, maxNeedMem/mib, (res.MemSwap+res.MemPhysical)/mib)
+	//if maxNeedMem > res.MemSwap+res.MemPhysical {
+	//	log.Debugf("sched: not scheduling on worker %d for %s; not enough virtual memory - need: %dM, have %dM", wid, caller, maxNeedMem/mib, (res.MemSwap+res.MemPhysical)/mib)
+	//	return false
+	//}
+
+	if maxNeedMem > (res.MemPhysical - 5) {
+		log.Debugf("sched: not scheduling on worker %d for %s; not enough virtual memory - need: %dM, have %dM", wid, caller, maxNeedMem/mib, (res.MemPhysical)/mib)
 		return false
 	}
 
@@ -86,7 +91,8 @@ func (a *activeResources) utilization(wr storiface.WorkerResources) float64 {
 		max = memMin
 	}
 
-	memMax := float64(a.memUsedMax+wr.MemReserved) / float64(wr.MemPhysical+wr.MemSwap)
+	//memMax := float64(a.memUsedMax+wr.MemReserved) / float64(wr.MemPhysical+wr.MemSwap)
+	memMax := float64(a.memUsedMax+wr.MemReserved) / float64(wr.MemPhysical-5)
 	if memMax > max {
 		max = memMax
 	}

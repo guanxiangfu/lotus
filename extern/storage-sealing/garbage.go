@@ -36,8 +36,11 @@ func (m *Sealing) PledgeSector() error {
 	if err != nil {
 		return xerrors.Errorf("getting config: %w", err)
 	}
+	log.Infof("cfg参数 %+v", cfg)
 
-	if cfg.MaxSealingSectors > 0 {
+	log.Infof("最大密封数量 %+v", cfg.MaxSealingSectors)
+	log.Infof("正在密封扇区 %+v", m.stats.curSealing())
+	if cfg.MaxSealingSectors > 0 { //最大密封数
 		if m.stats.curSealing() > cfg.MaxSealingSectors {
 			return xerrors.Errorf("too many sectors sealing (curSealing: %d, max: %d)", m.stats.curSealing(), cfg.MaxSealingSectors)
 		}
@@ -49,6 +52,7 @@ func (m *Sealing) PledgeSector() error {
 		// command exits
 
 		spt, err := m.currentSealProof(ctx)
+		log.Infof("spt参数 %+v", spt)
 		if err != nil {
 			log.Errorf("%+v", err)
 			return
@@ -61,11 +65,14 @@ func (m *Sealing) PledgeSector() error {
 		}
 
 		sid, err := m.sc.Next()
+		log.Infof("sid参数 %+v", sid)
+
 		if err != nil {
 			log.Errorf("%+v", err)
 			return
 		}
 		sectorID := m.minerSector(spt, sid)
+		log.Infof("sectorsID参数 %+v", sectorID)
 		err = m.sealer.NewSector(ctx, sectorID)
 		if err != nil {
 			log.Errorf("%+v", err)

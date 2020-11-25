@@ -167,9 +167,12 @@ func newScheduler() *scheduler {
 
 func (sh *scheduler) Schedule(ctx context.Context, sector storage.SectorRef, taskType sealtasks.TaskType, sel WorkerSelector, prepare WorkerAction, work WorkerAction) error {
 	ret := make(chan workerResponse)
-
+	log.Infof("WorkerAction work 参数 %+v ", work)
+	log.Infof("WorkerAction prepare 参数 %+v ", prepare)
+	log.Infof("WorkerSelector 参数 %+v ", sel)
 	select {
 	case sh.schedule <- &workerRequest{
+
 		sector:   sector,
 		taskType: taskType,
 		priority: getPriority(ctx),
@@ -219,6 +222,7 @@ type SchedDiagInfo struct {
 }
 
 func (sh *scheduler) runSched() {
+	log.Infof("runSched 开始执行")
 	defer close(sh.closed)
 
 	iw := time.After(InitWait)
@@ -285,6 +289,7 @@ func (sh *scheduler) runSched() {
 				}
 
 				openWindows := make([]*schedWindowRequest, 0, len(sh.openWindows))
+				log.Infof("openWindows 参数 %+v", openWindows)
 				for _, window := range sh.openWindows {
 					if window.worker != req.wid {
 						openWindows = append(openWindows, window)
@@ -329,6 +334,7 @@ func (sh *scheduler) diag() SchedDiagInfo {
 }
 
 func (sh *scheduler) trySched() {
+	log.Infof("trySched 开始执行")
 	/*
 		This assigns tasks to workers based on:
 		- Task priority (achieved by handling sh.schedQueue in order, since it's already sorted by priority)
@@ -349,6 +355,7 @@ func (sh *scheduler) trySched() {
 	defer sh.workersLk.RUnlock()
 
 	windows := make([]schedWindow, len(sh.openWindows))
+	log.Infof("windows 参数 %+v ", windows)
 	acceptableWindows := make([][]int, sh.schedQueue.Len())
 
 	log.Debugf("SCHED %d queued; %d open windows", sh.schedQueue.Len(), len(windows))
@@ -360,7 +367,9 @@ func (sh *scheduler) trySched() {
 
 	// Step 1
 	concurrency := len(sh.openWindows)
+	log.Infof("concurrency 参数 %+v ", concurrency)
 	throttle := make(chan struct{}, concurrency)
+	log.Infof("throttle 参数 %+v ", throttle)
 
 	var wg sync.WaitGroup
 	wg.Add(sh.schedQueue.Len())
@@ -380,6 +389,10 @@ func (sh *scheduler) trySched() {
 			task.indexHeap = sqi
 			for wnd, windowRequest := range sh.openWindows {
 				worker, ok := sh.workers[windowRequest.worker]
+				log.Infof("worker 参数 %+v ", worker)
+				log.Infof("ok 参数 %+v ", ok)
+				log.Infof("windowRequest 参数 %+v ", windowRequest)
+				log.Infof("wnd 参数 %+v ", wnd)
 				if !ok {
 					log.Errorf("worker referenced by windowRequest not found (worker: %s)", windowRequest.worker)
 					// TODO: How to move forward here?
