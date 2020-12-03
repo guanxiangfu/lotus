@@ -155,6 +155,30 @@ var runCmd = &cli.Command{
 			Usage: "used when 'listen' is unspecified. must be a valid duration recognized by golang's time.ParseDuration function",
 			Value: "30m",
 		},
+		//P1最大密封数量
+		&cli.Int64Flag{
+			Name:  "precommit1max",
+			Usage: "Allow the maximum number of simultaneous tasks for precommit1, default value: 0",
+			Value: 0,
+		},
+		//P2最大密封数量
+		&cli.Int64Flag{
+			Name:  "precommit2max",
+			Usage: "Allow the maximum number of simultaneous tasks for precommit2, default value: 0",
+			Value: 0,
+		},
+		//C最大密封数量
+		&cli.Int64Flag{
+			Name:  "commitmax",
+			Usage: "Allow the maximum number of simultaneous tasks for commit2, default value: 0",
+			Value: 0,
+		},
+		//分组
+		&cli.StringFlag{
+			Name:  "group",
+			Usage: "Worker grouping function, default value: all",
+			Value: "all",
+		},
 	},
 	Before: func(cctx *cli.Context) error {
 		if cctx.IsSet("address") {
@@ -368,8 +392,12 @@ var runCmd = &cli.Command{
 
 		workerApi := &worker{
 			LocalWorker: sectorstorage.NewLocalWorker(sectorstorage.WorkerConfig{
-				TaskTypes: taskTypes,
-				NoSwap:    cctx.Bool("no-swap"),
+				TaskTypes:     taskTypes,
+				NoSwap:        cctx.Bool("no-swap"),
+				PreCommit1Max: cctx.Int64("precommit1max"),
+				PreCommit2Max: cctx.Int64("precommit2max"),
+				CommitMax:     cctx.Int64("commitmax"),
+				Group:         cctx.String("group"),
 			}, remote, localStore, nodeApi, nodeApi, wsts),
 			localStore: localStore,
 			ls:         lr,

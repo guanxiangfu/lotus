@@ -44,6 +44,14 @@ type Worker interface {
 	Session(context.Context) (uuid.UUID, error)
 
 	Close() error // TODO: do we need this?
+
+	AllowableRange(ctx context.Context, task sealtasks.TaskType) (bool, error)
+	AddRange(ctx context.Context, task sealtasks.TaskType, addType int) error
+	GetWorkerInfo(ctx context.Context) WorkerInfo
+	AddStore(ctx context.Context, ID abi.SectorID, taskType sealtasks.TaskType) error
+	DeleteStore(ctx context.Context, ID abi.SectorID) error
+	SetWorkerParams(ctx context.Context, key string, val string) error
+	GetWorkerGroup(ctx context.Context) string
 }
 
 type SectorManager interface {
@@ -87,6 +95,11 @@ type result struct {
 
 type SealerConfig struct {
 	ParallelFetchLimit int
+
+	PreCommit1Max int64
+	PreCommit2Max int64
+	CommitMax     int64
+	Group         string
 
 	// Local worker config
 	AllowAddPiece   bool
@@ -156,7 +169,11 @@ func New(ctx context.Context, ls stores.LocalStorage, si stores.SectorIndex, sc 
 	}
 
 	err = m.AddWorker(ctx, NewLocalWorker(WorkerConfig{
-		TaskTypes: localTasks,
+		TaskTypes:     localTasks,
+		PreCommit1Max: sc.PreCommit1Max,
+		PreCommit2Max: sc.PreCommit2Max,
+		CommitMax:     sc.CommitMax,
+		Group:         sc.Group,
 	}, stor, lstor, si, m, wss))
 	if err != nil {
 		return nil, xerrors.Errorf("adding local worker: %w", err)

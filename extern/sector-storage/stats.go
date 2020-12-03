@@ -1,6 +1,8 @@
 package sectorstorage
 
 import (
+	"context"
+	"golang.org/x/xerrors"
 	"time"
 
 	"github.com/google/uuid"
@@ -91,4 +93,28 @@ func (m *Manager) WorkerJobs() map[uuid.UUID][]storiface.WorkerJob {
 	}
 
 	return out
+}
+
+func (m *Manager) GetWorker(ctx context.Context) map[uuid.UUID]WorkerInfo {
+	m.sched.workersLk.Lock()
+	defer m.sched.workersLk.Unlock()
+
+	out := map[uuid.UUID]WorkerInfo{}
+
+	for id, handle := range m.sched.workers {
+		info := handle.workerRpc.GetWorkerInfo(ctx)
+		out[uuid.UUID(id)] = info
+	}
+	return out
+}
+
+func (m *Manager) SetWorkerParam(ctx context.Context, worker uuid.UUID, key string, value string) error {
+	m.sched.workersLk.Lock()
+	defer m.sched.workersLk.Unlock()
+
+	w, exist := m.sched.workers[WorkerID(worker)]
+	if !exist {
+		return xerrors.Errorf("worker not found: %s", key)
+	}
+	return w.workerRpc.SetWorkerParams(ctx, key, value)
 }

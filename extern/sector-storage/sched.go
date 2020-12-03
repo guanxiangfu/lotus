@@ -384,49 +384,49 @@ func (sh *scheduler) trySched() {
 			}()
 
 			task := (*sh.schedQueue)[sqi]
-			needRes := ResourceTable[task.taskType][task.sector.ProofType]
+			//needRes := ResourceTable[task.taskType][task.sector.ProofType]
 
 			task.indexHeap = sqi
-			for wnd, windowRequest := range sh.openWindows {
-				worker, ok := sh.workers[windowRequest.worker]
-				log.Infof("worker 参数 %+v ", worker)
-				log.Infof("ok 参数 %+v ", ok)
-				log.Infof("windowRequest 参数 %+v ", windowRequest)
-				log.Infof("wnd 参数 %+v ", wnd)
-				if !ok {
-					log.Errorf("worker referenced by windowRequest not found (worker: %s)", windowRequest.worker)
-					// TODO: How to move forward here?
-					continue
-				}
-
-				if !worker.enabled {
-					log.Debugw("skipping disabled worker", "worker", windowRequest.worker)
-					continue
-				}
-
-				// TODO: allow bigger windows
-				if !windows[wnd].allocated.canHandleRequest(needRes, windowRequest.worker, "schedAcceptable", worker.info.Resources) {
-					continue
-				}
-
-				rpcCtx, cancel := context.WithTimeout(task.ctx, SelectorTimeout)
-				ok, err := task.sel.Ok(rpcCtx, task.taskType, task.sector.ProofType, worker)
-				cancel()
-				if err != nil {
-					log.Errorf("trySched(1) req.sel.Ok error: %+v", err)
-					continue
-				}
-
-				if !ok {
-					continue
-				}
-
-				acceptableWindows[sqi] = append(acceptableWindows[sqi], wnd)
-			}
-
-			if len(acceptableWindows[sqi]) == 0 {
-				return
-			}
+			//for wnd, windowRequest := range sh.openWindows {
+			//	worker, ok := sh.workers[windowRequest.worker]
+			//	log.Infof("worker 参数 %+v ", worker)
+			//	log.Infof("ok 参数 %+v ", ok)
+			//	log.Infof("windowRequest 参数 %+v ", windowRequest)
+			//	log.Infof("wnd 参数 %+v ", wnd)
+			//	if !ok {
+			//		log.Errorf("worker referenced by windowRequest not found (worker: %s)", windowRequest.worker)
+			//		// TODO: How to move forward here?
+			//		continue
+			//	}
+			//
+			//	if !worker.enabled {
+			//		log.Debugw("skipping disabled worker", "worker", windowRequest.worker)
+			//		continue
+			//	}
+			//
+			//	// TODO: allow bigger windows
+			//	if !windows[wnd].allocated.canHandleRequest(needRes, windowRequest.worker, "schedAcceptable", worker.info.Resources) {
+			//		continue
+			//	}
+			//
+			//	rpcCtx, cancel := context.WithTimeout(task.ctx, SelectorTimeout)
+			//	ok, err := task.sel.Ok(rpcCtx, task.taskType, task.sector.ProofType, worker)
+			//	cancel()
+			//	if err != nil {
+			//		log.Errorf("trySched(1) req.sel.Ok error: %+v", err)
+			//		continue
+			//	}
+			//
+			//	if !ok {
+			//		continue
+			//	}
+			//
+			//	acceptableWindows[sqi] = append(acceptableWindows[sqi], wnd)
+			//}
+			//
+			//if len(acceptableWindows[sqi]) == 0 {
+			//	return
+			//}
 
 			// Pick best worker (shuffle in case some workers are equally as good)
 			rand.Shuffle(len(acceptableWindows[sqi]), func(i, j int) {
