@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	sectorstorage "github.com/filecoin-project/lotus/extern/sector-storage"
 	"time"
 
 	datatransfer "github.com/filecoin-project/go-data-transfer"
@@ -68,6 +69,10 @@ type StorageMiner interface {
 	WorkerConnect(context.Context, string) error
 	WorkerStats(context.Context) (map[uuid.UUID]storiface.WorkerStats, error)
 	WorkerJobs(context.Context) (map[uuid.UUID][]storiface.WorkerJob, error)
+
+	GetWorker(ctx context.Context) (map[uuid.UUID]sectorstorage.WorkerInfo, error)
+	SetWorkerParam(ctx context.Context, worker uuid.UUID, key string, value string) error
+
 	storiface.WorkerReturn
 
 	// SealingSchedDiag dumps internal sealing scheduler state

@@ -2,6 +2,7 @@ package apistruct
 
 import (
 	"context"
+	sectorstorage "github.com/filecoin-project/lotus/extern/sector-storage"
 	"io"
 	"time"
 
@@ -314,6 +315,9 @@ type StorageMinerStruct struct {
 		WorkerStats   func(context.Context) (map[uuid.UUID]storiface.WorkerStats, error) `perm:"admin"`
 		WorkerJobs    func(context.Context) (map[uuid.UUID][]storiface.WorkerJob, error) `perm:"admin"`
 
+		GetWorker      func(ctx context.Context) (map[uuid.UUID]sectorstorage.WorkerInfo, error)   `perm:"admin"`
+		SetWorkerParam func(ctx context.Context, worker uuid.UUID, key string, value string) error `perm:"admin"`
+
 		ReturnAddPiece        func(ctx context.Context, callID storiface.CallID, pi abi.PieceInfo, err *storiface.CallError) error          `perm:"admin" retry:"true"`
 		ReturnSealPreCommit1  func(ctx context.Context, callID storiface.CallID, p1o storage.PreCommit1Out, err *storiface.CallError) error `perm:"admin" retry:"true"`
 		ReturnSealPreCommit2  func(ctx context.Context, callID storiface.CallID, sealed storage.SectorCids, err *storiface.CallError) error `perm:"admin" retry:"true"`
@@ -403,6 +407,14 @@ type WorkerStruct struct {
 
 		ProcessSession func(context.Context) (uuid.UUID, error) `perm:"admin"`
 		Session        func(context.Context) (uuid.UUID, error) `perm:"admin"`
+
+		AddRange        func(ctx context.Context, task sealtasks.TaskType, addType int) error         `perm:"admin"`
+		AllowableRange  func(ctx context.Context, task sealtasks.TaskType) (bool, error)              `perm:"admin"`
+		GetWorkerInfo   func(ctx context.Context) sectorstorage.WorkerInfo                            `perm:"admin"`
+		AddStore        func(ctx context.Context, ID abi.SectorID, taskType sealtasks.TaskType) error `perm:"admin"`
+		DeleteStore     func(ctx context.Context, ID abi.SectorID) error                              `perm:"admin"`
+		SetWorkerParams func(ctx context.Context, key string, val string) error                       `perm:"admin"`
+		GetWorkerGroup  func(ctx context.Context) string                                              `perm:"admin"`
 	}
 }
 
@@ -1752,6 +1764,42 @@ func (c *WalletStruct) WalletImport(ctx context.Context, ki *types.KeyInfo) (add
 
 func (c *WalletStruct) WalletDelete(ctx context.Context, addr address.Address) error {
 	return c.Internal.WalletDelete(ctx, addr)
+}
+
+func (c *StorageMinerStruct) GetWorker(ctx context.Context) (map[uuid.UUID]sectorstorage.WorkerInfo, error) {
+	return c.Internal.GetWorker(ctx)
+}
+
+func (c *StorageMinerStruct) SetWorkerParam(ctx context.Context, worker uuid.UUID, key string, value string) error {
+	return c.Internal.SetWorkerParam(ctx, worker, key, value)
+}
+
+func (w *WorkerStruct) AddRange(ctx context.Context, task sealtasks.TaskType, addType int) error {
+	return w.Internal.AddRange(ctx, task, addType)
+}
+
+func (w *WorkerStruct) AllowableRange(ctx context.Context, task sealtasks.TaskType) (bool, error) {
+	return w.Internal.AllowableRange(ctx, task)
+}
+
+func (c *WorkerStruct) GetWorkerInfo(ctx context.Context) sectorstorage.WorkerInfo {
+	return c.Internal.GetWorkerInfo(ctx)
+}
+
+func (c *WorkerStruct) AddStore(ctx context.Context, ID abi.SectorID, taskType sealtasks.TaskType) error {
+	return c.Internal.AddStore(ctx, ID, taskType)
+}
+
+func (c *WorkerStruct) DeleteStore(ctx context.Context, ID abi.SectorID) error {
+	return c.Internal.DeleteStore(ctx, ID)
+}
+
+func (c *WorkerStruct) SetWorkerParams(ctx context.Context, key string, val string) error {
+	return c.Internal.SetWorkerParams(ctx, key, val)
+}
+
+func (c *WorkerStruct) GetWorkerGroup(ctx context.Context) string {
+	return c.Internal.GetWorkerGroup(ctx)
 }
 
 var _ api.Common = &CommonStruct{}

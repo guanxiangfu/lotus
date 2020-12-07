@@ -573,4 +573,12 @@ func (sm *StorageMinerAPI) CheckProvable(ctx context.Context, pp abi.RegisteredP
 	return out, nil
 }
 
+func (sm *StorageMinerAPI) GetWorker(ctx context.Context) (map[uuid.UUID]sectorstorage.WorkerInfo, error) {
+	return sm.StorageMgr.GetWorker(ctx), nil
+}
+
+func (sm *StorageMinerAPI) SetWorkerParam(ctx context.Context, worker uuid.UUID, key string, value string) error {
+	return sm.StorageMgr.SetWorkerParam(ctx, worker, key, value)
+}
+
 var _ api.StorageMiner = &StorageMinerAPI{}

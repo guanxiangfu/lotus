@@ -26,6 +26,10 @@ func (s *taskSelector) Ok(ctx context.Context, task sealtasks.TaskType, spt abi.
 	}
 	_, supported := tasks[task]
 
+	if ok, err := whnd.workerRpc.AllowableRange(ctx, task); !ok {
+		return false, err
+	}
+
 	return supported, nil
 }
 

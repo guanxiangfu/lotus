@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"github.com/filecoin-project/lotus/extern/sector-storage/sealtasks"
 	"net/http"
 
 	"golang.org/x/xerrors"
@@ -44,6 +45,34 @@ func connectRemoteWorker(ctx context.Context, fa api.Common, url string) (*remot
 func (r *remoteWorker) Close() error {
 	r.closer()
 	return nil
+}
+
+func (r *remoteWorker) AddRange(ctx context.Context, task sealtasks.TaskType, addType int) error {
+	return r.WorkerAPI.AddRange(ctx, task, addType)
+}
+
+func (r *remoteWorker) AllowableRange(ctx context.Context, task sealtasks.TaskType) (bool, error) {
+	return r.WorkerAPI.AllowableRange(ctx, task)
+}
+
+func (r *remoteWorker) GetWorkerInfo(ctx context.Context) sectorstorage.WorkerInfo {
+	return r.WorkerAPI.GetWorkerInfo(ctx)
+}
+
+func (r *remoteWorker) AddStore(ctx context.Context, ID abi.SectorID, taskType sealtasks.TaskType) error {
+	return r.WorkerAPI.AddStore(ctx, ID, taskType)
+}
+
+func (r *remoteWorker) DeleteStore(ctx context.Context, ID abi.SectorID) error {
+	return r.WorkerAPI.DeleteStore(ctx, ID)
+}
+
+func (r *remoteWorker) SetWorkerParams(ctx context.Context, key string, val string) error {
+	return r.WorkerAPI.SetWorkerParams(ctx, key, val)
+}
+
+func (r *remoteWorker) GetWorkerGroup(ctx context.Context) string {
+	return r.WorkerAPI.GetWorkerGroup(ctx)
 }
 
 var _ sectorstorage.Worker = &remoteWorker{}

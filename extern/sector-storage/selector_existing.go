@@ -37,6 +37,10 @@ func (s *existingSelector) Ok(ctx context.Context, task sealtasks.TaskType, spt 
 		return false, nil
 	}
 
+	if ok, err := whnd.workerRpc.AllowableRange(ctx, task); !ok {
+		return false, err
+	}
+
 	paths, err := whnd.workerRpc.Paths(ctx)
 	if err != nil {
 		return false, xerrors.Errorf("getting worker paths: %w", err)
