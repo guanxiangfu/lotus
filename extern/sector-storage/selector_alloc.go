@@ -13,16 +13,18 @@ import (
 )
 
 type allocSelector struct {
-	index stores.SectorIndex
-	alloc storiface.SectorFileType
-	ptype storiface.PathType
+	index      stores.SectorIndex
+	alloc      storiface.SectorFileType
+	ptype      storiface.PathType
+	allowFetch bool
 }
 
-func newAllocSelector(index stores.SectorIndex, alloc storiface.SectorFileType, ptype storiface.PathType) *allocSelector {
+func newAllocSelector(index stores.SectorIndex, alloc storiface.SectorFileType, ptype storiface.PathType, allowFetch bool) *allocSelector {
 	return &allocSelector{
-		index: index,
-		alloc: alloc,
-		ptype: ptype,
+		index:      index,
+		alloc:      alloc,
+		ptype:      ptype,
+		allowFetch: allowFetch,
 	}
 }
 

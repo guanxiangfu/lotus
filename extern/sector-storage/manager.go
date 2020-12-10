@@ -267,7 +267,7 @@ func (m *Manager) tryReadUnsealedPiece(ctx context.Context, sink io.Writer, sect
 			returnErr = xerrors.Errorf("reading piece from sealed sector: %w", err)
 		}
 	} else {
-		selector = newAllocSelector(m.index, storiface.FTUnsealed, storiface.PathSealing)
+		selector = newAllocSelector(m.index, storiface.FTUnsealed, storiface.PathSealing, true)
 	}
 	return
 }
@@ -343,7 +343,7 @@ func (m *Manager) AddPiece(ctx context.Context, sector storage.SectorRef, existi
 	var selector WorkerSelector
 	var err error
 	if len(existingPieces) == 0 { // new
-		selector = newAllocSelector(m.index, storiface.FTUnsealed, storiface.PathSealing)
+		selector = newAllocSelector(m.index, storiface.FTUnsealed, storiface.PathSealing, true)
 	} else { // use existing
 		selector = newExistingSelector(m.index, sector.ID, storiface.FTUnsealed, false)
 	}
@@ -396,7 +396,7 @@ func (m *Manager) SealPreCommit1(ctx context.Context, sector storage.SectorRef, 
 
 	// TODO: also consider where the unsealed data sits
 
-	selector := newAllocSelector(m.index, storiface.FTCache|storiface.FTSealed, storiface.PathSealing)
+	selector := newAllocSelector(m.index, storiface.FTCache|storiface.FTSealed, storiface.PathSealing, false)
 
 	err = m.sched.Schedule(ctx, sector, sealtasks.TTPreCommit1, selector, m.schedFetch(sector, storiface.FTUnsealed, storiface.PathSealing, storiface.AcquireMove), func(ctx context.Context, w Worker) error {
 		err := m.startWork(ctx, w, wk)(w.SealPreCommit1(ctx, sector, ticket, pieces))
@@ -590,7 +590,7 @@ func (m *Manager) FinalizeSector(ctx context.Context, sector storage.SectorRef, 
 		return err
 	}
 
-	fetchSel := newAllocSelector(m.index, storiface.FTCache|storiface.FTSealed, storiface.PathStorage)
+	fetchSel := newAllocSelector(m.index, storiface.FTCache|storiface.FTSealed, storiface.PathStorage, true)
 	moveUnsealed := unsealed
 	{
 		if len(keepUnsealed) == 0 {
