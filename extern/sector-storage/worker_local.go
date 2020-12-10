@@ -35,6 +35,11 @@ var pathTypes = []storiface.SectorFileType{storiface.FTUnsealed, storiface.FTSea
 type WorkerConfig struct {
 	TaskTypes []sealtasks.TaskType
 	NoSwap    bool
+
+	PreCommit1Max int64
+	PreCommit2Max int64
+	CommitMax     int64
+	Group         string
 }
 
 // used do provide custom proofs impl (mostly used in testing)
@@ -100,6 +105,12 @@ func newLocalWorker(executor ExecutorFunc, wcfg WorkerConfig, store stores.Store
 
 		session: uuid.New(),
 		closing: make(chan struct{}),
+
+		preCommit1Max: wcfg.PreCommit1Max,
+		preCommit2Max: wcfg.PreCommit2Max,
+		commitMax:     wcfg.CommitMax,
+		group:         wcfg.Group,
+		storeList:     make(map[abi.SectorID]string),
 	}
 
 	if w.executor == nil {

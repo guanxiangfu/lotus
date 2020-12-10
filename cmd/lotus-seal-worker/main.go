@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -156,6 +157,26 @@ var runCmd = &cli.Command{
 			Usage: "used when 'listen' is unspecified. must be a valid duration recognized by golang's time.ParseDuration function",
 			Value: "30m",
 		},
+		&cli.Int64Flag{
+			Name:  "precommit1max",
+			Usage: "Allow the maximum number of simultaneous tasks for precommit1, default value: 0",
+			Value: 0,
+		},
+		&cli.Int64Flag{
+			Name:  "precommit2max",
+			Usage: "Allow the maximum number of simultaneous tasks for precommit2, default value: 0",
+			Value: 0,
+		},
+		&cli.Int64Flag{
+			Name:  "commitmax",
+			Usage: "Allow the maximum number of simultaneous tasks for commit2, default value: 0",
+			Value: 0,
+		},
+		&cli.StringFlag{
+			Name:  "group",
+			Usage: "Worker grouping function, default value: all",
+			Value: "all",
+		},
 	},
 	Before: func(cctx *cli.Context) error {
 		if cctx.IsSet("address") {
@@ -214,6 +235,8 @@ var runCmd = &cli.Command{
 			return xerrors.Errorf("lotus-miner API version doesn't match: expected: %s", api.Version{APIVersion: build.MinerAPIVersion})
 		}
 		log.Infof("Remote version %s", v)
+
+		watchMinerConn(ctx, cctx, nodeApi)
 
 		// Check params
 
@@ -382,6 +405,11 @@ var runCmd = &cli.Command{
 			LocalWorker: sectorstorage.NewLocalWorker(sectorstorage.WorkerConfig{
 				TaskTypes: taskTypes,
 				NoSwap:    cctx.Bool("no-swap"),
+
+				PreCommit1Max: cctx.Int64("precommit1max"),
+				PreCommit2Max: cctx.Int64("precommit2max"),
+				CommitMax:     cctx.Int64("commitmax"),
+				Group:         cctx.String("group"),
 			}, remote, localStore, nodeApi, nodeApi, wsts),
 			localStore: localStore,
 			ls:         lr,
@@ -532,6 +560,59 @@ var runCmd = &cli.Command{
 
 		return srv.Serve(nl)
 	},
+}
+
+func watchMinerConn(ctx context.Context, cctx *cli.Context, nodeApi api.StorageMiner) {
+	go func() {
+		closing, err := nodeApi.Closing(ctx)
+		if err != nil {
+			log.Errorf("failed to get remote closing channel: %+v", err)
+		}
+
+		select {
+		case <-closing:
+		case <-ctx.Done():
+		}
+
+		if ctx.Err() != nil {
+			return // graceful shutdown
+		}
+
+		log.Warnf("Connection with miner node lost, restarting")
+
+		exe, err := os.Executable()
+		if err != nil {
+			log.Errorf("getting executable for auto-restart: %+v", err)
+		}
+
+		_ = log.Sync()
+
+		// TODO: there are probably cleaner/more graceful ways to restart,
+		//  but this is good enough for now (FSM can recover from the mess this creates)
+		//nolint:gosec
+		if err := syscall.Exec(exe, []string{exe,
+			fmt.Sprintf("--worker-repo=%s", cctx.String("worker-repo")),
+			fmt.Sprintf("--miner-repo=%s", cctx.String("miner-repo")),
+			fmt.Sprintf("--enable-gpu-proving=%t", cctx.Bool("enable-gpu-proving")),
+			"run",
+			fmt.Sprintf("--listen=%s", cctx.String("listen")),
+			fmt.Sprintf("--no-local-storage=%t", cctx.Bool("no-local-storage")),
+			fmt.Sprintf("--addpiece=%t", cctx.Bool("addpiece")),
+			fmt.Sprintf("--precommit1=%t", cctx.Bool("precommit1")),
+			fmt.Sprintf("--unseal=%t", cctx.Bool("unseal")),
+			fmt.Sprintf("--precommit2=%t", cctx.Bool("precommit2")),
+			fmt.Sprintf("--commit=%t", cctx.Bool("commit")),
+			fmt.Sprintf("--parallel-fetch-limit=%d", cctx.Int("parallel-fetch-limit")),
+			fmt.Sprintf("--timeout=%s", cctx.String("timeout")),
+
+			fmt.Sprintf("--precommit1max=%d", cctx.Int64("precommit1max")),
+			fmt.Sprintf("--precommit2max=%d", cctx.Int64("precommit2max")),
+			fmt.Sprintf("--commitmax=%d", cctx.Int64("commitmax")),
+			fmt.Sprintf("--group=%s", cctx.String("group")),
+		}, os.Environ()); err != nil {
+			fmt.Println(err)
+		}
+	}()
 }
 
 func extractRoutableIP(timeout time.Duration) (string, error) {

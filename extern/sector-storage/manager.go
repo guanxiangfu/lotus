@@ -100,6 +100,11 @@ type result struct {
 type SealerConfig struct {
 	ParallelFetchLimit int
 
+	PreCommit1Max int64
+	PreCommit2Max int64
+	CommitMax     int64
+	Group         string
+
 	// Local worker config
 	AllowAddPiece   bool
 	AllowPreCommit1 bool
@@ -169,6 +174,11 @@ func New(ctx context.Context, ls stores.LocalStorage, si stores.SectorIndex, sc 
 
 	err = m.AddWorker(ctx, NewLocalWorker(WorkerConfig{
 		TaskTypes: localTasks,
+
+		PreCommit1Max: sc.PreCommit1Max,
+		PreCommit2Max: sc.PreCommit2Max,
+		CommitMax:     sc.CommitMax,
+		Group:         sc.Group,
 	}, stor, lstor, si, m, wss))
 	if err != nil {
 		return nil, xerrors.Errorf("adding local worker: %w", err)
