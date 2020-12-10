@@ -2,6 +2,7 @@ package sectorstorage
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"sort"
 	"sync"
@@ -54,6 +55,8 @@ type WorkerSelector interface {
 type scheduler struct {
 	workersLk sync.RWMutex
 	workers   map[WorkerID]*workerHandle
+
+	execSectorWorker map[abi.SectorID]string
 
 	schedule       chan *workerRequest
 	windowRequests chan *schedWindowRequest
@@ -379,6 +382,8 @@ func (sh *scheduler) trySched() {
 			task := (*sh.schedQueue)[sqi]
 			needRes := ResourceTable[task.taskType][task.sector.ProofType]
 
+			sectorGroup, exist := sh.execSectorWorker[task.sector.ID]
+
 			task.indexHeap = sqi
 			for wnd, windowRequest := range sh.openWindows {
 				worker, ok := sh.workers[windowRequest.worker]
@@ -392,6 +397,16 @@ func (sh *scheduler) trySched() {
 				if !worker.enabled {
 					log.Debugw("skipping disabled worker", "worker", windowRequest.worker)
 					continue
+				}
+
+				if task.taskType != sealtasks.TTFetch {
+					if exist && sectorGroup != "all" {
+						workerGroup := worker.workerRpc.GetWorkerGroup(task.ctx)
+						if workerGroup != sectorGroup {
+							fmt.Printf("sectorGroup does not match workerGroup, sectorid: %v, sectorGroup: %s, workerGroup: %s, taskType: %s \n", task.sector, sectorGroup, workerGroup, task.taskType)
+							continue
+						}
+					}
 				}
 
 				// TODO: allow bigger windows
@@ -489,7 +504,7 @@ func (sh *scheduler) trySched() {
 
 			_ = sh.workers[sh.openWindows[selectedWindow].worker].workerRpc.AddRange(task.ctx, task.taskType, 1)
 
-			//_ = sh.workers[sh.openWindows[selectedWindow].worker].workerRpc.AddStore(task.ctx, task.sector.ID, task.taskType)
+			_ = sh.workers[sh.openWindows[selectedWindow].worker].workerRpc.AddStore(task.ctx, task.sector.ID, task.taskType)
 
 			scheduled++
 			acceptableQueue = append(acceptableQueue, task.sector.ID)
@@ -501,7 +516,7 @@ func (sh *scheduler) trySched() {
 			continue
 		}
 
-		windows[selectedWindow].todo = append(windows[selectedWindow].todo, task)
+		//windows[selectedWindow].todo = append(windows[selectedWindow].todo, task)
 
 		rmQueue = append(rmQueue, sqi)
 		scheduled++
@@ -517,6 +532,10 @@ func (sh *scheduler) trySched() {
 	log.Infof("Step 3")
 	if scheduled == 0 {
 		return
+	}
+
+	for _, sector := range acceptableQueue {
+		sh.delete(sector)
 	}
 
 	scheduledWindows := map[int]struct{}{}
