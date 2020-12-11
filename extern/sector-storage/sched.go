@@ -497,7 +497,7 @@ func (sh *scheduler) trySched() {
 			selectedWindow = wnd
 			break
 		}
-		log.Infof("selectedWindow : %+v", selectedWindow)
+		//log.Infof("selectedWindow : %+v", selectedWindow)
 		if selectedWindow >= 0 {
 			// all windows full
 			windows[selectedWindow].todo = append(windows[selectedWindow].todo, task)
@@ -510,7 +510,7 @@ func (sh *scheduler) trySched() {
 			acceptableQueue = append(acceptableQueue, task.sector.ID)
 		}
 
-		log.Infof("all windows full")
+		//log.Infof("all windows full")
 		if selectedWindow < 0 {
 			// all windows full
 			continue
@@ -521,7 +521,7 @@ func (sh *scheduler) trySched() {
 		rmQueue = append(rmQueue, sqi)
 		scheduled++
 	}
-	log.Infof("rmQueue : %+v", rmQueue)
+	//log.Infof("rmQueue : %+v", rmQueue)
 	if len(rmQueue) > 0 {
 		for i := len(rmQueue) - 1; i >= 0; i-- {
 			sh.schedQueue.Remove(rmQueue[i])
@@ -529,7 +529,7 @@ func (sh *scheduler) trySched() {
 	}
 
 	// Step 3
-	log.Infof("Step 3")
+	//log.Infof("Step 3")
 	if scheduled == 0 {
 		return
 	}
