@@ -74,6 +74,11 @@ type scheduler struct {
 	closing  chan struct{}
 	closed   chan struct{}
 	testSync chan struct{} // used for testing
+
+	watchClosing  chan WorkerID
+	workerClosing chan WorkerID
+	newWorkers    chan *workerHandle
+	nextWorker    WorkerID
 }
 
 type workerHandle struct {
@@ -224,6 +229,8 @@ type SchedDiagInfo struct {
 func (sh *scheduler) runSched() {
 	defer close(sh.closed)
 
+	//go sh.runWorkerWatcher()
+
 	iw := time.After(InitWait)
 	var initialised bool
 
@@ -232,6 +239,11 @@ func (sh *scheduler) runSched() {
 		var toDisable []workerDisableReq
 
 		select {
+		//case w := <-sh.newWorkers:
+		//	sh.newWorker(w)
+		//
+		//case wid := <-sh.workerClosing:
+		//	sh.dropWorker(wid)
 		case <-sh.workerChange:
 			doSched = true
 		case dreq := <-sh.workerDisable:
@@ -503,6 +515,9 @@ func (sh *scheduler) trySched() {
 			windows[selectedWindow].todo = append(windows[selectedWindow].todo, task)
 
 			_ = sh.workers[sh.openWindows[selectedWindow].worker].workerRpc.AddRange(task.ctx, task.taskType, 1)
+			if task.taskType == sealtasks.TTPreCommit2 {
+				_ = sh.workers[sh.openWindows[selectedWindow].worker].workerRpc.AddRange(task.ctx, sealtasks.TTPreCommit2, 2)
+			}
 
 			_ = sh.workers[sh.openWindows[selectedWindow].worker].workerRpc.AddStore(task.ctx, task.sector.ID, task.taskType)
 
@@ -604,14 +619,13 @@ func (sh *scheduler) Close(ctx context.Context) error {
 	return nil
 }
 
-//
 //func (sh *scheduler) assignWorker(taskDone chan struct{}, wid WorkerID, w *workerHandle, req *workerRequest) error {
-//	needRes := ResourceTable[req.taskType][sh.spt]
+//	needRes := ResourceTable[req.taskType][&sh.spt]
 //
 //	//_ = w.w.AddRange(req.ctx, req.taskType, 1)
 //	//_ = w.w.AddStore(req.ctx, req.sector, req.taskType)
 //	sh.workersLk.Lock()
-//	sh.execSectorWorker[req.sector] = w.w.GetWorkerGroup(req.ctx)
+//	sh.execSectorWorker[req.sector.ID] = w.workerRpc.GetWorkerGroup(req.ctx)
 //	sh.workersLk.Unlock()
 //
 //	w.lk.Lock()
@@ -619,7 +633,7 @@ func (sh *scheduler) Close(ctx context.Context) error {
 //	w.lk.Unlock()
 //
 //	go func() {
-//		err := req.prepare(req.ctx, w.wt.worker(w.w))
+//		err := req.prepare(req.ctx, w.workerRpc.worker(w.w))
 //		sh.workersLk.Lock()
 //
 //		if err != nil {
