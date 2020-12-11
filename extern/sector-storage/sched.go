@@ -347,7 +347,7 @@ func (sh *scheduler) trySched() {
 		3. Submit windows with scheduled tasks to workers
 
 	*/
-	log.Infof("sh %+v", sh)
+	//log.Infof("sh %+v", sh)
 	sh.workersLk.RLock()         // 增加锁定
 	defer sh.workersLk.RUnlock() // 延缓释放
 

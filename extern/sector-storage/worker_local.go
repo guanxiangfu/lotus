@@ -639,12 +639,12 @@ func (l *LocalWorker) AllowableRange(ctx context.Context, task sealtasks.TaskTyp
 		when the worker has other tasks
 		this worker will not execute addpiece
 	*/
-	case sealtasks.TTAddPiece:
-		taskTotal := l.preCommit1Now + l.preCommit2Now + l.commitNow
-		if taskTotal > 0 {
-			log.Info("this task has other task")
-			return false, nil
-		}
+	//case sealtasks.TTAddPiece:
+	//	taskTotal := l.preCommit1Now + l.preCommit2Now + l.commitNow
+	//	if taskTotal > 0 {
+	//		log.Info("this task has other task")
+	//		return false, nil
+	//	}
 
 	case sealtasks.TTPreCommit1:
 		if l.preCommit1Max > 0 {
