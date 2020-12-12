@@ -119,6 +119,7 @@ type WorkerStateStore *statestore.StateStore
 type ManagerStateStore *statestore.StateStore
 
 func New(ctx context.Context, ls stores.LocalStorage, si stores.SectorIndex, sc SealerConfig, urls URLs, sa StorageAuth, wss WorkerStateStore, mss ManagerStateStore) (*Manager, error) {
+	log.Infof("测试调度过程 manager new")
 	lstor, err := stores.NewLocal(ctx, ls, si, urls)
 	if err != nil {
 		return nil, err
@@ -188,6 +189,7 @@ func New(ctx context.Context, ls stores.LocalStorage, si stores.SectorIndex, sc 
 }
 
 func (m *Manager) AddLocalStorage(ctx context.Context, path string) error {
+	log.Infof("测试调度过程 manager AddLocalStorage")
 	path, err := homedir.Expand(path)
 	if err != nil {
 		return xerrors.Errorf("expanding local path: %w", err)
@@ -206,18 +208,22 @@ func (m *Manager) AddLocalStorage(ctx context.Context, path string) error {
 }
 
 func (m *Manager) AddWorker(ctx context.Context, w Worker) error {
+	log.Infof("测试调度过程 manager AddWorker")
 	return m.sched.runWorker(ctx, w)
 }
 
 func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Infof("测试调度过程 manager ServeHTTP")
 	m.remoteHnd.ServeHTTP(w, r)
 }
 
 func schedNop(context.Context, Worker) error {
+	log.Infof("测试调度过程 manager schedNop")
 	return nil
 }
 
 func (m *Manager) schedFetch(sector storage.SectorRef, ft storiface.SectorFileType, ptype storiface.PathType, am storiface.AcquireMode) func(context.Context, Worker) error {
+	log.Infof("测试调度过程 manager schedFetch")
 	return func(ctx context.Context, worker Worker) error {
 		_, err := m.waitSimpleCall(ctx)(worker.Fetch(ctx, sector, ft, ptype, am))
 		return err
@@ -225,6 +231,7 @@ func (m *Manager) schedFetch(sector storage.SectorRef, ft storiface.SectorFileTy
 }
 
 func (m *Manager) readPiece(sink io.Writer, sector storage.SectorRef, offset storiface.UnpaddedByteIndex, size abi.UnpaddedPieceSize, rok *bool) func(ctx context.Context, w Worker) error {
+	log.Infof("测试调度过程 manager readPiece")
 	return func(ctx context.Context, w Worker) error {
 		r, err := m.waitSimpleCall(ctx)(w.ReadPiece(ctx, sink, sector, offset, size))
 		if err != nil {
@@ -238,7 +245,7 @@ func (m *Manager) readPiece(sink io.Writer, sector storage.SectorRef, offset sto
 }
 
 func (m *Manager) tryReadUnsealedPiece(ctx context.Context, sink io.Writer, sector storage.SectorRef, offset storiface.UnpaddedByteIndex, size abi.UnpaddedPieceSize) (foundUnsealed bool, readOk bool, selector WorkerSelector, returnErr error) {
-
+	log.Infof("测试调度过程 manager tryReadUnsealedPiece")
 	// acquire a lock purely for reading unsealed sectors
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -273,6 +280,7 @@ func (m *Manager) tryReadUnsealedPiece(ctx context.Context, sink io.Writer, sect
 }
 
 func (m *Manager) ReadPiece(ctx context.Context, sink io.Writer, sector storage.SectorRef, offset storiface.UnpaddedByteIndex, size abi.UnpaddedPieceSize, ticket abi.SealRandomness, unsealed cid.Cid) error {
+	log.Infof("测试调度过程 manager ReadPiece")
 	foundUnsealed, readOk, selector, err := m.tryReadUnsealedPiece(ctx, sink, sector, offset, size)
 	if err != nil {
 		return err
@@ -328,11 +336,13 @@ func (m *Manager) ReadPiece(ctx context.Context, sink io.Writer, sector storage.
 }
 
 func (m *Manager) NewSector(ctx context.Context, sector storage.SectorRef) error {
+	log.Infof("测试调度过程 manager NewSector")
 	log.Warnf("stub NewSector")
 	return nil
 }
 
 func (m *Manager) AddPiece(ctx context.Context, sector storage.SectorRef, existingPieces []abi.UnpaddedPieceSize, sz abi.UnpaddedPieceSize, r io.Reader) (abi.PieceInfo, error) {
+	log.Infof("测试调度过程 manager AddPiece")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -364,6 +374,7 @@ func (m *Manager) AddPiece(ctx context.Context, sector storage.SectorRef, existi
 }
 
 func (m *Manager) SealPreCommit1(ctx context.Context, sector storage.SectorRef, ticket abi.SealRandomness, pieces []abi.PieceInfo) (out storage.PreCommit1Out, err error) {
+	log.Infof("测试调度过程 manager SealPreCommit1")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -415,6 +426,7 @@ func (m *Manager) SealPreCommit1(ctx context.Context, sector storage.SectorRef, 
 }
 
 func (m *Manager) SealPreCommit2(ctx context.Context, sector storage.SectorRef, phase1Out storage.PreCommit1Out) (out storage.SectorCids, err error) {
+	log.Infof("测试调度过程 manager SealPreCommit2")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -464,6 +476,7 @@ func (m *Manager) SealPreCommit2(ctx context.Context, sector storage.SectorRef, 
 }
 
 func (m *Manager) SealCommit1(ctx context.Context, sector storage.SectorRef, ticket abi.SealRandomness, seed abi.InteractiveSealRandomness, pieces []abi.PieceInfo, cids storage.SectorCids) (out storage.Commit1Out, err error) {
+	log.Infof("测试调度过程 manager SealCommit1")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -516,6 +529,7 @@ func (m *Manager) SealCommit1(ctx context.Context, sector storage.SectorRef, tic
 }
 
 func (m *Manager) SealCommit2(ctx context.Context, sector storage.SectorRef, phase1Out storage.Commit1Out) (out storage.Proof, err error) {
+	log.Infof("测试调度过程 manager SealCommit2")
 	wk, wait, cancel, err := m.getWork(ctx, sealtasks.TTCommit2, sector, phase1Out)
 	if err != nil {
 		return storage.Proof{}, xerrors.Errorf("getWork: %w", err)
@@ -559,6 +573,7 @@ func (m *Manager) SealCommit2(ctx context.Context, sector storage.SectorRef, pha
 }
 
 func (m *Manager) FinalizeSector(ctx context.Context, sector storage.SectorRef, keepUnsealed []storage.Range) error {
+	log.Infof("测试调度过程 manager FinalizeSector")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -612,11 +627,13 @@ func (m *Manager) FinalizeSector(ctx context.Context, sector storage.SectorRef, 
 }
 
 func (m *Manager) ReleaseUnsealed(ctx context.Context, sector storage.SectorRef, safeToFree []storage.Range) error {
+	log.Infof("测试调度过程 manager ReleaseUnsealed")
 	log.Warnw("ReleaseUnsealed todo")
 	return nil
 }
 
 func (m *Manager) Remove(ctx context.Context, sector storage.SectorRef) error {
+	log.Infof("测试调度过程 manager Remove")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -640,50 +657,62 @@ func (m *Manager) Remove(ctx context.Context, sector storage.SectorRef) error {
 }
 
 func (m *Manager) ReturnAddPiece(ctx context.Context, callID storiface.CallID, pi abi.PieceInfo, err *storiface.CallError) error {
+	log.Infof("测试调度过程 manager ReturnAddPiece")
 	return m.returnResult(callID, pi, err)
 }
 
 func (m *Manager) ReturnSealPreCommit1(ctx context.Context, callID storiface.CallID, p1o storage.PreCommit1Out, err *storiface.CallError) error {
+	log.Infof("测试调度过程 manager ReturnSealPreCommit1")
 	return m.returnResult(callID, p1o, err)
 }
 
 func (m *Manager) ReturnSealPreCommit2(ctx context.Context, callID storiface.CallID, sealed storage.SectorCids, err *storiface.CallError) error {
+	log.Infof("测试调度过程 manager ReturnSealPreCommit2")
 	return m.returnResult(callID, sealed, err)
 }
 
 func (m *Manager) ReturnSealCommit1(ctx context.Context, callID storiface.CallID, out storage.Commit1Out, err *storiface.CallError) error {
+	log.Infof("测试调度过程 manager ReturnSealCommit1")
 	return m.returnResult(callID, out, err)
 }
 
 func (m *Manager) ReturnSealCommit2(ctx context.Context, callID storiface.CallID, proof storage.Proof, err *storiface.CallError) error {
+	log.Infof("测试调度过程 manager ReturnSealCommit2")
 	return m.returnResult(callID, proof, err)
 }
 
 func (m *Manager) ReturnFinalizeSector(ctx context.Context, callID storiface.CallID, err *storiface.CallError) error {
+	log.Infof("测试调度过程 manager ReturnFinalizeSector")
 	return m.returnResult(callID, nil, err)
 }
 
 func (m *Manager) ReturnReleaseUnsealed(ctx context.Context, callID storiface.CallID, err *storiface.CallError) error {
+	log.Infof("测试调度过程 manager ReturnReleaseUnsealed")
 	return m.returnResult(callID, nil, err)
 }
 
 func (m *Manager) ReturnMoveStorage(ctx context.Context, callID storiface.CallID, err *storiface.CallError) error {
+	log.Infof("测试调度过程 manager ReturnMoveStorage")
 	return m.returnResult(callID, nil, err)
 }
 
 func (m *Manager) ReturnUnsealPiece(ctx context.Context, callID storiface.CallID, err *storiface.CallError) error {
+	log.Infof("测试调度过程 manager ReturnUnsealPiece")
 	return m.returnResult(callID, nil, err)
 }
 
 func (m *Manager) ReturnReadPiece(ctx context.Context, callID storiface.CallID, ok bool, err *storiface.CallError) error {
+	log.Infof("测试调度过程 manager ReturnReadPiece")
 	return m.returnResult(callID, ok, err)
 }
 
 func (m *Manager) ReturnFetch(ctx context.Context, callID storiface.CallID, err *storiface.CallError) error {
+	log.Infof("测试调度过程 manager ReturnFetch")
 	return m.returnResult(callID, nil, err)
 }
 
 func (m *Manager) StorageLocal(ctx context.Context) (map[stores.ID]string, error) {
+	log.Infof("测试调度过程 manager StorageLocal")
 	l, err := m.localStore.Local(ctx)
 	if err != nil {
 		return nil, err
@@ -698,10 +727,12 @@ func (m *Manager) StorageLocal(ctx context.Context) (map[stores.ID]string, error
 }
 
 func (m *Manager) FsStat(ctx context.Context, id stores.ID) (fsutil.FsStat, error) {
+	log.Infof("测试调度过程 manager FsStat")
 	return m.storage.FsStat(ctx, id)
 }
 
 func (m *Manager) SchedDiag(ctx context.Context, doSched bool) (interface{}, error) {
+	log.Infof("测试调度过程 manager SchedDiag")
 	if doSched {
 		select {
 		case m.sched.workerChange <- struct{}{}:
@@ -755,6 +786,7 @@ func (m *Manager) SchedDiag(ctx context.Context, doSched bool) (interface{}, err
 }
 
 func (m *Manager) Close(ctx context.Context) error {
+	log.Infof("测试调度过程 manager Close")
 	return m.sched.Close(ctx)
 }
 

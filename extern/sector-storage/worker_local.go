@@ -85,6 +85,7 @@ type WorkerInfo struct {
 }
 
 func newLocalWorker(executor ExecutorFunc, wcfg WorkerConfig, store stores.Store, local *stores.Local, sindex stores.SectorIndex, ret storiface.WorkerReturn, cst *statestore.StateStore) *LocalWorker {
+	log.Infof("测试调度过程 worker_local newLocalWorker")
 	acceptTasks := map[sealtasks.TaskType]struct{}{}
 	for _, taskType := range wcfg.TaskTypes {
 		acceptTasks[taskType] = struct{}{}
@@ -141,6 +142,7 @@ func newLocalWorker(executor ExecutorFunc, wcfg WorkerConfig, store stores.Store
 }
 
 func NewLocalWorker(wcfg WorkerConfig, store stores.Store, local *stores.Local, sindex stores.SectorIndex, ret storiface.WorkerReturn, cst *statestore.StateStore) *LocalWorker {
+	log.Infof("测试调度过程 worker_local NewLocalWorker")
 	return newLocalWorker(nil, wcfg, store, local, sindex, ret, cst)
 }
 
@@ -150,6 +152,7 @@ type localWorkerPathProvider struct {
 }
 
 func (l *localWorkerPathProvider) AcquireSector(ctx context.Context, sector storage.SectorRef, existing storiface.SectorFileType, allocate storiface.SectorFileType, sealing storiface.PathType) (storiface.SectorPaths, func(), error) {
+	log.Infof("测试调度过程 worker_local AcquireSector")
 	paths, storageIDs, err := l.w.storage.AcquireSector(ctx, sector, existing, allocate, sealing, l.op)
 	if err != nil {
 		return storiface.SectorPaths{}, nil, err
@@ -180,6 +183,7 @@ func (l *localWorkerPathProvider) AcquireSector(ctx context.Context, sector stor
 }
 
 func (l *LocalWorker) ffiExec() (ffiwrapper.Storage, error) {
+	log.Infof("测试调度过程 worker_local ffiExec")
 	return ffiwrapper.New(&localWorkerPathProvider{w: l})
 }
 
@@ -202,6 +206,7 @@ const (
 // in: func(WorkerReturn, context.Context, CallID, err string)
 // in: func(WorkerReturn, context.Context, CallID, ret T, err string)
 func rfunc(in interface{}) func(context.Context, storiface.CallID, storiface.WorkerReturn, interface{}, *storiface.CallError) error {
+	log.Infof("测试调度过程 worker_local rfunc")
 	rf := reflect.ValueOf(in)
 	ft := rf.Type()
 	withRet := ft.NumIn() == 5
@@ -248,6 +253,7 @@ var returnFunc = map[ReturnType]func(context.Context, storiface.CallID, storifac
 }
 
 func (l *LocalWorker) asyncCall(ctx context.Context, sector storage.SectorRef, rt ReturnType, work func(ctx context.Context, ci storiface.CallID) (interface{}, error)) (storiface.CallID, error) {
+	log.Infof("测试调度过程 worker_local asyncCall")
 	ci := storiface.CallID{
 		Sector: sector.ID,
 		ID:     uuid.New(),
@@ -291,6 +297,7 @@ func (l *LocalWorker) asyncCall(ctx context.Context, sector storage.SectorRef, r
 }
 
 func toCallError(err error) *storiface.CallError {
+	log.Infof("测试调度过程 worker_local toCallError")
 	var serr *storiface.CallError
 	if err != nil && !xerrors.As(err, &serr) {
 		serr = storiface.Err(storiface.ErrUnknown, err)
@@ -301,6 +308,7 @@ func toCallError(err error) *storiface.CallError {
 
 // doReturn tries to send the result to manager, returns true if successful
 func doReturn(ctx context.Context, rt ReturnType, ci storiface.CallID, ret storiface.WorkerReturn, res interface{}, rerr *storiface.CallError) bool {
+	log.Infof("测试调度过程 worker_local doReturn")
 	for {
 		err := returnFunc[rt](ctx, ci, ret, res, rerr)
 		if err == nil {
@@ -324,6 +332,7 @@ func doReturn(ctx context.Context, rt ReturnType, ci storiface.CallID, ret stori
 }
 
 func (l *LocalWorker) NewSector(ctx context.Context, sector storage.SectorRef) error {
+	log.Infof("测试调度过程 worker_local NewSector")
 	sb, err := l.executor()
 	if err != nil {
 		return err
@@ -333,6 +342,7 @@ func (l *LocalWorker) NewSector(ctx context.Context, sector storage.SectorRef) e
 }
 
 func (l *LocalWorker) AddPiece(ctx context.Context, sector storage.SectorRef, epcs []abi.UnpaddedPieceSize, sz abi.UnpaddedPieceSize, r io.Reader) (storiface.CallID, error) {
+	log.Infof("测试调度过程 worker_local AddPiece")
 	sb, err := l.executor()
 	if err != nil {
 		return storiface.UndefCall, err
@@ -344,6 +354,7 @@ func (l *LocalWorker) AddPiece(ctx context.Context, sector storage.SectorRef, ep
 }
 
 func (l *LocalWorker) Fetch(ctx context.Context, sector storage.SectorRef, fileType storiface.SectorFileType, ptype storiface.PathType, am storiface.AcquireMode) (storiface.CallID, error) {
+	log.Infof("测试调度过程 worker_local Fetch")
 	return l.asyncCall(ctx, sector, Fetch, func(ctx context.Context, ci storiface.CallID) (interface{}, error) {
 		_, done, err := (&localWorkerPathProvider{w: l, op: am}).AcquireSector(ctx, sector, fileType, storiface.FTNone, ptype)
 		if err == nil {
@@ -355,6 +366,7 @@ func (l *LocalWorker) Fetch(ctx context.Context, sector storage.SectorRef, fileT
 }
 
 func (l *LocalWorker) SealPreCommit1(ctx context.Context, sector storage.SectorRef, ticket abi.SealRandomness, pieces []abi.PieceInfo) (storiface.CallID, error) {
+	log.Infof("测试调度过程 worker_local SealPreCommit1")
 	return l.asyncCall(ctx, sector, SealPreCommit1, func(ctx context.Context, ci storiface.CallID) (interface{}, error) {
 
 		{
@@ -378,6 +390,7 @@ func (l *LocalWorker) SealPreCommit1(ctx context.Context, sector storage.SectorR
 }
 
 func (l *LocalWorker) SealPreCommit2(ctx context.Context, sector storage.SectorRef, phase1Out storage.PreCommit1Out) (storiface.CallID, error) {
+	log.Infof("测试调度过程 worker_local SealPreCommit2")
 	sb, err := l.executor()
 	if err != nil {
 		return storiface.UndefCall, err
@@ -389,6 +402,7 @@ func (l *LocalWorker) SealPreCommit2(ctx context.Context, sector storage.SectorR
 }
 
 func (l *LocalWorker) SealCommit1(ctx context.Context, sector storage.SectorRef, ticket abi.SealRandomness, seed abi.InteractiveSealRandomness, pieces []abi.PieceInfo, cids storage.SectorCids) (storiface.CallID, error) {
+	log.Infof("测试调度过程 worker_local SealCommit1")
 	sb, err := l.executor()
 	if err != nil {
 		return storiface.UndefCall, err
@@ -400,6 +414,7 @@ func (l *LocalWorker) SealCommit1(ctx context.Context, sector storage.SectorRef,
 }
 
 func (l *LocalWorker) SealCommit2(ctx context.Context, sector storage.SectorRef, phase1Out storage.Commit1Out) (storiface.CallID, error) {
+	log.Infof("测试调度过程 worker_local SealCommit2")
 	sb, err := l.executor()
 	if err != nil {
 		return storiface.UndefCall, err
@@ -411,6 +426,7 @@ func (l *LocalWorker) SealCommit2(ctx context.Context, sector storage.SectorRef,
 }
 
 func (l *LocalWorker) FinalizeSector(ctx context.Context, sector storage.SectorRef, keepUnsealed []storage.Range) (storiface.CallID, error) {
+	log.Infof("测试调度过程 worker_local FinalizeSector")
 	sb, err := l.executor()
 	if err != nil {
 		return storiface.UndefCall, err
@@ -432,10 +448,12 @@ func (l *LocalWorker) FinalizeSector(ctx context.Context, sector storage.SectorR
 }
 
 func (l *LocalWorker) ReleaseUnsealed(ctx context.Context, sector storage.SectorRef, safeToFree []storage.Range) (storiface.CallID, error) {
+	log.Infof("测试调度过程 worker_local ReleaseUnsealed")
 	return storiface.UndefCall, xerrors.Errorf("implement me")
 }
 
 func (l *LocalWorker) Remove(ctx context.Context, sector abi.SectorID) error {
+	log.Infof("测试调度过程 worker_local Remove")
 	var err error
 
 	if rerr := l.storage.Remove(ctx, sector, storiface.FTSealed, true); rerr != nil {
@@ -452,12 +470,14 @@ func (l *LocalWorker) Remove(ctx context.Context, sector abi.SectorID) error {
 }
 
 func (l *LocalWorker) MoveStorage(ctx context.Context, sector storage.SectorRef, types storiface.SectorFileType) (storiface.CallID, error) {
+	log.Infof("测试调度过程 worker_local MoveStorage")
 	return l.asyncCall(ctx, sector, MoveStorage, func(ctx context.Context, ci storiface.CallID) (interface{}, error) {
 		return nil, l.storage.MoveStorage(ctx, sector, types)
 	})
 }
 
 func (l *LocalWorker) UnsealPiece(ctx context.Context, sector storage.SectorRef, index storiface.UnpaddedByteIndex, size abi.UnpaddedPieceSize, randomness abi.SealRandomness, cid cid.Cid) (storiface.CallID, error) {
+	log.Infof("测试调度过程 worker_local UnsealPiece")
 	sb, err := l.executor()
 	if err != nil {
 		return storiface.UndefCall, err
@@ -481,6 +501,7 @@ func (l *LocalWorker) UnsealPiece(ctx context.Context, sector storage.SectorRef,
 }
 
 func (l *LocalWorker) ReadPiece(ctx context.Context, writer io.Writer, sector storage.SectorRef, index storiface.UnpaddedByteIndex, size abi.UnpaddedPieceSize) (storiface.CallID, error) {
+	log.Infof("测试调度过程 worker_local ReadPiece")
 	sb, err := l.executor()
 	if err != nil {
 		return storiface.UndefCall, err
@@ -492,6 +513,7 @@ func (l *LocalWorker) ReadPiece(ctx context.Context, writer io.Writer, sector st
 }
 
 func (l *LocalWorker) TaskTypes(context.Context) (map[sealtasks.TaskType]struct{}, error) {
+	log.Infof("测试调度过程 worker_local TaskTypes")
 	l.taskLk.Lock()
 	defer l.taskLk.Unlock()
 
@@ -499,6 +521,7 @@ func (l *LocalWorker) TaskTypes(context.Context) (map[sealtasks.TaskType]struct{
 }
 
 func (l *LocalWorker) TaskDisable(ctx context.Context, tt sealtasks.TaskType) error {
+	log.Infof("测试调度过程 worker_local TaskDisable")
 	l.taskLk.Lock()
 	defer l.taskLk.Unlock()
 
@@ -507,6 +530,7 @@ func (l *LocalWorker) TaskDisable(ctx context.Context, tt sealtasks.TaskType) er
 }
 
 func (l *LocalWorker) TaskEnable(ctx context.Context, tt sealtasks.TaskType) error {
+	log.Infof("测试调度过程 worker_local TaskEnable")
 	l.taskLk.Lock()
 	defer l.taskLk.Unlock()
 
@@ -515,10 +539,12 @@ func (l *LocalWorker) TaskEnable(ctx context.Context, tt sealtasks.TaskType) err
 }
 
 func (l *LocalWorker) Paths(ctx context.Context) ([]stores.StoragePath, error) {
+	log.Infof("测试调度过程 worker_local Paths")
 	return l.localStore.Local(ctx)
 }
 
 func (l *LocalWorker) Info(context.Context) (storiface.WorkerInfo, error) {
+	log.Infof("测试调度过程 worker_local Info")
 	hostname, err := os.Hostname() // TODO: allow overriding from config
 	if err != nil {
 		panic(err)
@@ -557,6 +583,7 @@ func (l *LocalWorker) Info(context.Context) (storiface.WorkerInfo, error) {
 }
 
 func (l *LocalWorker) Session(ctx context.Context) (uuid.UUID, error) {
+	log.Infof("测试调度过程 worker_local Session")
 	if atomic.LoadInt64(&l.testDisable) == 1 {
 		return uuid.UUID{}, xerrors.Errorf("disabled")
 	}
@@ -570,12 +597,14 @@ func (l *LocalWorker) Session(ctx context.Context) (uuid.UUID, error) {
 }
 
 func (l *LocalWorker) Close() error {
+	log.Infof("测试调度过程 worker_local Close")
 	close(l.closing)
 	return nil
 }
 
 // WaitQuiet blocks as long as there are tasks running
 func (l *LocalWorker) WaitQuiet() {
+	log.Infof("测试调度过程 worker_local WaitQuiet")
 	l.running.Wait()
 }
 
@@ -585,14 +614,17 @@ type wctx struct {
 }
 
 func (w *wctx) Deadline() (time.Time, bool) {
+	log.Infof("测试调度过程 worker_local Deadline")
 	return time.Time{}, false
 }
 
 func (w *wctx) Done() <-chan struct{} {
+	log.Infof("测试调度过程 worker_local Done")
 	return w.closing
 }
 
 func (w *wctx) Err() error {
+	log.Infof("测试调度过程 worker_local Err")
 	select {
 	case <-w.closing:
 		return context.Canceled
@@ -602,11 +634,12 @@ func (w *wctx) Err() error {
 }
 
 func (w *wctx) Value(key interface{}) interface{} {
+	log.Infof("测试调度过程 worker_local Value")
 	return w.vals.Value(key)
 }
 
 func (l *LocalWorker) AddRange(ctx context.Context, task sealtasks.TaskType, addType int) error {
-
+	log.Infof("测试调度过程 worker_local AddRange")
 	switch task {
 	case sealtasks.TTPreCommit1:
 		if addType == 1 {
@@ -632,7 +665,7 @@ func (l *LocalWorker) AddRange(ctx context.Context, task sealtasks.TaskType, add
 }
 
 func (l *LocalWorker) AllowableRange(ctx context.Context, task sealtasks.TaskType) (bool, error) {
-
+	log.Infof("测试调度过程 worker_local AllowableRange")
 	switch task {
 
 	/*	prevent addpiece from queuing
@@ -672,6 +705,7 @@ func (l *LocalWorker) AllowableRange(ctx context.Context, task sealtasks.TaskTyp
 	return true, nil
 }
 func (l *LocalWorker) GetWorkerInfo(ctx context.Context) WorkerInfo {
+	log.Infof("测试调度过程 worker_local GetWorkerInfo")
 	task := make([]string, 0)
 
 	for info := range l.acceptTasks {
@@ -701,15 +735,18 @@ func (l *LocalWorker) GetWorkerInfo(ctx context.Context) WorkerInfo {
 	return workerInfo
 }
 func (l *LocalWorker) AddStore(ctx context.Context, ID abi.SectorID, taskType sealtasks.TaskType) error {
+	log.Infof("测试调度过程 worker_local AddStore")
 	l.storeList[ID] = sealtasks.TaskMean[taskType]
 	return nil
 }
 func (l *LocalWorker) DeleteStore(ctx context.Context, ID abi.SectorID) error {
+	log.Infof("测试调度过程 worker_local DeleteStore")
 	delete(l.storeList, ID)
 	return nil
 }
 
 func (l *LocalWorker) SetWorkerParams(ctx context.Context, key string, val string) error {
+	log.Infof("测试调度过程 worker_local SetWorkerParams")
 	switch key {
 	case "precommit1max":
 		param, err := strconv.ParseInt(val, 10, 64)
@@ -738,6 +775,7 @@ func (l *LocalWorker) SetWorkerParams(ctx context.Context, key string, val strin
 }
 
 func (l *LocalWorker) GetWorkerGroup(ctx context.Context) string {
+	log.Infof("测试调度过程 worker_local GetWorkerGroup")
 	return l.group
 }
 

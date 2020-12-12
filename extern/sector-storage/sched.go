@@ -30,6 +30,7 @@ var (
 )
 
 func getPriority(ctx context.Context) int {
+	log.Infof("测试调度过程 sched getPriority")
 	sp := ctx.Value(SchedPriorityKey)
 	if p, ok := sp.(int); ok {
 		return p
@@ -39,6 +40,7 @@ func getPriority(ctx context.Context) int {
 }
 
 func WithPriority(ctx context.Context, priority int) context.Context {
+	log.Infof("测试调度过程 sched WithPriority")
 	return context.WithValue(ctx, SchedPriorityKey, priority)
 }
 
@@ -151,6 +153,7 @@ type workerResponse struct {
 }
 
 func newScheduler() *scheduler {
+	log.Infof("测试调度过程 sched newScheduler")
 	return &scheduler{
 		workers: map[WorkerID]*workerHandle{},
 
@@ -174,6 +177,7 @@ func newScheduler() *scheduler {
 }
 
 func (sh *scheduler) Schedule(ctx context.Context, sector storage.SectorRef, taskType sealtasks.TaskType, sel WorkerSelector, prepare WorkerAction, work WorkerAction) error {
+	log.Infof("测试调度过程 sched Schedule")
 	ret := make(chan workerResponse)
 
 	select {
@@ -208,6 +212,7 @@ func (sh *scheduler) Schedule(ctx context.Context, sector storage.SectorRef, tas
 }
 
 func (r *workerRequest) respond(err error) {
+	log.Infof("测试调度过程 sched respond")
 	select {
 	case r.ret <- workerResponse{err: err}:
 	case <-r.ctx.Done():
@@ -227,6 +232,7 @@ type SchedDiagInfo struct {
 }
 
 func (sh *scheduler) runSched() {
+	log.Infof("测试调度过程 sched runSched")
 	defer close(sh.closed)
 
 	//go sh.runWorkerWatcher()
@@ -321,6 +327,7 @@ func (sh *scheduler) runSched() {
 }
 
 func (sh *scheduler) diag() SchedDiagInfo {
+	log.Infof("测试调度过程 sched diag")
 	var out SchedDiagInfo
 
 	for sqi := 0; sqi < sh.schedQueue.Len(); sqi++ {
@@ -344,6 +351,7 @@ func (sh *scheduler) diag() SchedDiagInfo {
 }
 
 func (sh *scheduler) trySched() {
+	log.Infof("测试调度过程 sched trySched")
 	/*
 		This assigns tasks to workers based on:
 		- Task priority (achieved by handling sh.schedQueue in order, since it's already sorted by priority)
@@ -585,6 +593,7 @@ func (sh *scheduler) trySched() {
 }
 
 func (sh *scheduler) schedClose() {
+	log.Infof("测试调度过程 sched schedClose")
 	sh.workersLk.Lock()
 	defer sh.workersLk.Unlock()
 	log.Debugf("closing scheduler")
@@ -595,6 +604,7 @@ func (sh *scheduler) schedClose() {
 }
 
 func (sh *scheduler) Info(ctx context.Context) (interface{}, error) {
+	log.Infof("测试调度过程 sched Info")
 	ch := make(chan interface{}, 1)
 
 	sh.info <- func(res interface{}) {
@@ -610,6 +620,7 @@ func (sh *scheduler) Info(ctx context.Context) (interface{}, error) {
 }
 
 func (sh *scheduler) Close(ctx context.Context) error {
+	log.Infof("测试调度过程 sched Close")
 	close(sh.closing)
 	select {
 	case <-sh.closed:
@@ -705,6 +716,7 @@ func (sh *scheduler) Close(ctx context.Context) error {
 //}
 
 func (sh *scheduler) delete(sector abi.SectorID) {
+	log.Infof("测试调度过程 sched delete")
 	for sqi, task := range *sh.schedQueue {
 		if sector == task.sector.ID {
 			sh.workersLk.Lock()
