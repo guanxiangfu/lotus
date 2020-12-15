@@ -338,7 +338,7 @@ func (sw *schedWorker) workerCompactWindows() {
 
 func (sw *schedWorker) processAssignedWindows() {
 	worker := sw.worker
-
+	//taskDone := make(chan struct{}, 1)
 assignLoop:
 	// process windows in order
 	for len(worker.activeWindows) > 0 {
@@ -366,6 +366,12 @@ assignLoop:
 
 			log.Debugf("assign worker sector %d", todo.sector.ID.Number)
 			err := sw.startProcessingTask(sw.taskDone, todo)
+			if err != nil {
+				log.Errorf("startProcessingTask error: %+v", err)
+				go todo.respond(xerrors.Errorf("startProcessingTask error: %w", err))
+			}
+
+			err = sw.sched.AssignWorker(taskDone, sw.wid, worker, todo)
 
 			if err != nil {
 				log.Errorf("startProcessingTask error: %+v", err)

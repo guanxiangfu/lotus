@@ -55,6 +55,8 @@ type WorkerSelector interface {
 }
 
 type scheduler struct {
+	spt abi.RegisteredSealProof
+
 	workersLk sync.RWMutex
 	workers   map[WorkerID]*workerHandle
 
@@ -97,6 +99,9 @@ type workerHandle struct {
 	activeWindows []*schedWindow
 
 	enabled bool
+
+	// stats / tracking
+	wt *workTracker
 
 	// for sync manager goroutine closing
 	cleanupStarted bool
@@ -630,90 +635,90 @@ func (sh *scheduler) Close(ctx context.Context) error {
 	return nil
 }
 
-//func (sh *scheduler) assignWorker(taskDone chan struct{}, wid WorkerID, w *workerHandle, req *workerRequest) error {
-//	needRes := ResourceTable[req.taskType][&sh.spt]
-//
-//	//_ = w.w.AddRange(req.ctx, req.taskType, 1)
-//	//_ = w.w.AddStore(req.ctx, req.sector, req.taskType)
-//	sh.workersLk.Lock()
-//	sh.execSectorWorker[req.sector.ID] = w.workerRpc.GetWorkerGroup(req.ctx)
-//	sh.workersLk.Unlock()
-//
-//	w.lk.Lock()
-//	w.preparing.add(w.info.Resources, needRes)
-//	w.lk.Unlock()
-//
-//	go func() {
-//		err := req.prepare(req.ctx, w.workerRpc.worker(w.w))
-//		sh.workersLk.Lock()
-//
-//		if err != nil {
-//			w.lk.Lock()
-//			_ = w.w.AddRange(req.ctx, req.taskType, 2)
-//			_ = w.w.DeleteStore(req.ctx, req.sector)
-//
-//			w.preparing.free(w.info.Resources, needRes)
-//			w.lk.Unlock()
-//			sh.workersLk.Unlock()
-//
-//			select {
-//			case taskDone <- struct{}{}:
-//			case <-sh.closing:
-//				log.Warnf("scheduler closed while sending response (prepare error: %+v)", err)
-//			}
-//
-//			select {
-//			case req.ret <- workerResponse{err: err}:
-//			case <-req.ctx.Done():
-//				log.Warnf("request got cancelled before we could respond (prepare error: %+v)", err)
-//			case <-sh.closing:
-//				log.Warnf("scheduler closed while sending response (prepare error: %+v)", err)
-//			}
-//			return
-//		}
-//
-//		err = w.active.withResources(wid, w.info.Resources, needRes, &sh.workersLk, func() error {
-//			w.lk.Lock()
-//			w.preparing.free(w.info.Resources, needRes)
-//			w.lk.Unlock()
-//			sh.workersLk.Unlock()
-//			defer sh.workersLk.Lock() // we MUST return locked from this function
-//
-//			select {
-//			case taskDone <- struct{}{}:
-//			case <-sh.closing:
-//			}
-//
-//			err = req.work(req.ctx, w.wt.worker(w.w))
-//
-//			select {
-//			case req.ret <- workerResponse{err: err}:
-//			case <-req.ctx.Done():
-//				log.Warnf("request got cancelled before we could respond")
-//			case <-sh.closing:
-//				log.Warnf("scheduler closed while sending response")
-//			}
-//
-//			return nil
-//		})
-//
-//		_ = w.w.AddRange(req.ctx, req.taskType, 2)
-//		_ = w.w.DeleteStore(req.ctx, req.sector)
-//		if req.taskType == sealtasks.TTFetch {
-//			//fmt.Printf("delete taskgroup map, sectorID: %v, taskType: %s\n", req.sector, req.taskType)
-//			delete(sh.execSectorWorker, req.sector)
-//		}
-//
-//		sh.workersLk.Unlock()
-//
-//		// This error should always be nil, since nothing is setting it, but just to be safe:
-//		if err != nil {
-//			log.Errorf("error executing worker (withResources): %+v", err)
-//		}
-//	}()
-//
-//	return nil
-//}
+func (sh *scheduler) AssignWorker(taskDone chan struct{}, wid WorkerID, w *workerHandle, req *workerRequest) error {
+	needRes := ResourceTable[req.taskType][sh.spt]
+
+	//_ = w.w.AddRange(req.ctx, req.taskType, 1)
+	//_ = w.w.AddStore(req.ctx, req.sector, req.taskType)
+	sh.workersLk.Lock()
+	sh.execSectorWorker[req.sector.ID] = w.workerRpc.GetWorkerGroup(req.ctx)
+	sh.workersLk.Unlock()
+
+	w.lk.Lock()
+	w.preparing.add(w.info.Resources, needRes)
+	w.lk.Unlock()
+
+	go func() {
+		err := req.prepare(req.ctx, w.wt.worker(wid, w.workerRpc))
+		sh.workersLk.Lock()
+
+		if err != nil {
+			w.lk.Lock()
+			_ = w.workerRpc.AddRange(req.ctx, req.taskType, 2)
+			_ = w.workerRpc.DeleteStore(req.ctx, req.sector.ID)
+
+			w.preparing.free(w.info.Resources, needRes)
+			w.lk.Unlock()
+			sh.workersLk.Unlock()
+
+			select {
+			case taskDone <- struct{}{}:
+			case <-sh.closing:
+				log.Warnf("scheduler closed while sending response (prepare error: %+v)", err)
+			}
+
+			select {
+			case req.ret <- workerResponse{err: err}:
+			case <-req.ctx.Done():
+				log.Warnf("request got cancelled before we could respond (prepare error: %+v)", err)
+			case <-sh.closing:
+				log.Warnf("scheduler closed while sending response (prepare error: %+v)", err)
+			}
+			return
+		}
+
+		err = w.active.withResources(wid, w.info.Resources, needRes, &sh.workersLk, func() error {
+			w.lk.Lock()
+			w.preparing.free(w.info.Resources, needRes)
+			w.lk.Unlock()
+			sh.workersLk.Unlock()
+			defer sh.workersLk.Lock() // we MUST return locked from this function
+
+			select {
+			case taskDone <- struct{}{}:
+			case <-sh.closing:
+			}
+
+			err = req.work(req.ctx, w.wt.worker(wid, w.workerRpc))
+
+			select {
+			case req.ret <- workerResponse{err: err}:
+			case <-req.ctx.Done():
+				log.Warnf("request got cancelled before we could respond")
+			case <-sh.closing:
+				log.Warnf("scheduler closed while sending response")
+			}
+
+			return nil
+		})
+
+		_ = w.workerRpc.AddRange(req.ctx, req.taskType, 2)
+		_ = w.workerRpc.DeleteStore(req.ctx, req.sector.ID)
+		if req.taskType == sealtasks.TTFetch {
+			//fmt.Printf("delete taskgroup map, sectorID: %v, taskType: %s\n", req.sector, req.taskType)
+			delete(sh.execSectorWorker, req.sector.ID)
+		}
+
+		sh.workersLk.Unlock()
+
+		// This error should always be nil, since nothing is setting it, but just to be safe:
+		if err != nil {
+			log.Errorf("error executing worker (withResources): %+v", err)
+		}
+	}()
+
+	return nil
+}
 
 func (sh *scheduler) delete(sector abi.SectorID) {
 	log.Infof("测试调度过程 sched delete")

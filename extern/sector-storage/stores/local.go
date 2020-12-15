@@ -84,6 +84,7 @@ type path struct {
 }
 
 func (p *path) stat(ls LocalStorage) (fsutil.FsStat, error) {
+	log.Infof("测试调度过程 local stat")
 	stat, err := ls.Stat(p.local)
 	if err != nil {
 		return fsutil.FsStat{}, xerrors.Errorf("stat %s: %w", p.local, err)
@@ -131,10 +132,12 @@ func (p *path) stat(ls LocalStorage) (fsutil.FsStat, error) {
 }
 
 func (p *path) sectorPath(sid abi.SectorID, fileType storiface.SectorFileType) string {
+	log.Infof("测试调度过程 local sectorPath")
 	return filepath.Join(p.local, fileType.String(), storiface.SectorName(sid))
 }
 
 func NewLocal(ctx context.Context, ls LocalStorage, index SectorIndex, urls []string) (*Local, error) {
+	log.Infof("测试调度过程 local NewLocal")
 	l := &Local{
 		localStorage: ls,
 		index:        index,
@@ -146,6 +149,7 @@ func NewLocal(ctx context.Context, ls LocalStorage, index SectorIndex, urls []st
 }
 
 func (st *Local) OpenPath(ctx context.Context, p string) error {
+	log.Infof("测试调度过程 local OpenPath")
 	st.localLk.Lock()
 	defer st.localLk.Unlock()
 
@@ -194,6 +198,7 @@ func (st *Local) OpenPath(ctx context.Context, p string) error {
 }
 
 func (st *Local) open(ctx context.Context) error {
+	log.Infof("测试调度过程 local open")
 	cfg, err := st.localStorage.GetStorage()
 	if err != nil {
 		return xerrors.Errorf("getting local storage config: %w", err)
@@ -212,6 +217,7 @@ func (st *Local) open(ctx context.Context) error {
 }
 
 func (st *Local) Redeclare(ctx context.Context) error {
+	log.Infof("测试调度过程 local Redeclare")
 	st.localLk.Lock()
 	defer st.localLk.Unlock()
 
@@ -256,6 +262,7 @@ func (st *Local) Redeclare(ctx context.Context) error {
 }
 
 func (st *Local) declareSectors(ctx context.Context, p string, id ID, primary bool) error {
+	log.Infof("测试调度过程 local declareSectors")
 	for _, t := range storiface.PathTypes {
 		ents, err := ioutil.ReadDir(filepath.Join(p, t.String()))
 		if err != nil {
@@ -289,6 +296,7 @@ func (st *Local) declareSectors(ctx context.Context, p string, id ID, primary bo
 }
 
 func (st *Local) reportHealth(ctx context.Context) {
+	log.Infof("测试调度过程 local reportHealth")
 	// randomize interval by ~10%
 	interval := (HeartbeatInterval*100_000 + time.Duration(rand.Int63n(10_000))) / 100_000
 
@@ -304,6 +312,7 @@ func (st *Local) reportHealth(ctx context.Context) {
 }
 
 func (st *Local) reportStorage(ctx context.Context) {
+	log.Infof("测试调度过程 local reportStorage")
 	st.localLk.RLock()
 
 	toReport := map[ID]HealthReport{}
@@ -327,6 +336,7 @@ func (st *Local) reportStorage(ctx context.Context) {
 }
 
 func (st *Local) Reserve(ctx context.Context, sid storage.SectorRef, ft storiface.SectorFileType, storageIDs storiface.SectorPaths, overheadTab map[storiface.SectorFileType]int) (func(), error) {
+	log.Infof("测试调度过程 local Reserve")
 	ssize, err := sid.ProofType.SectorSize()
 	if err != nil {
 		return nil, err
@@ -382,6 +392,7 @@ func (st *Local) Reserve(ctx context.Context, sid storage.SectorRef, ft storifac
 }
 
 func (st *Local) AcquireSector(ctx context.Context, sid storage.SectorRef, existing storiface.SectorFileType, allocate storiface.SectorFileType, pathType storiface.PathType, op storiface.AcquireMode) (storiface.SectorPaths, storiface.SectorPaths, error) {
+	log.Infof("测试调度过程 local AcquireSector")
 	if existing|allocate != existing^allocate {
 		return storiface.SectorPaths{}, storiface.SectorPaths{}, xerrors.New("can't both find and allocate a sector")
 	}
@@ -478,6 +489,7 @@ func (st *Local) AcquireSector(ctx context.Context, sid storage.SectorRef, exist
 }
 
 func (st *Local) Local(ctx context.Context) ([]StoragePath, error) {
+	log.Infof("测试调度过程 local Local")
 	st.localLk.RLock()
 	defer st.localLk.RUnlock()
 
@@ -505,6 +517,7 @@ func (st *Local) Local(ctx context.Context) ([]StoragePath, error) {
 }
 
 func (st *Local) Remove(ctx context.Context, sid abi.SectorID, typ storiface.SectorFileType, force bool) error {
+	log.Infof("测试调度过程 local Remove")
 	if bits.OnesCount(uint(typ)) != 1 {
 		return xerrors.New("delete expects one file type")
 	}
@@ -528,6 +541,7 @@ func (st *Local) Remove(ctx context.Context, sid abi.SectorID, typ storiface.Sec
 }
 
 func (st *Local) RemoveCopies(ctx context.Context, sid abi.SectorID, typ storiface.SectorFileType) error {
+	log.Infof("测试调度过程 local RemoveCopies")
 	if bits.OnesCount(uint(typ)) != 1 {
 		return xerrors.New("delete expects one file type")
 	}
@@ -564,6 +578,7 @@ func (st *Local) RemoveCopies(ctx context.Context, sid abi.SectorID, typ storifa
 }
 
 func (st *Local) removeSector(ctx context.Context, sid abi.SectorID, typ storiface.SectorFileType, storage ID) error {
+	log.Infof("测试调度过程 local removeSector")
 	p, ok := st.paths[storage]
 	if !ok {
 		return nil
@@ -590,6 +605,7 @@ func (st *Local) removeSector(ctx context.Context, sid abi.SectorID, typ storifa
 }
 
 func (st *Local) MoveStorage(ctx context.Context, s storage.SectorRef, types storiface.SectorFileType) error {
+	log.Infof("测试调度过程 local MoveStorage")
 	dest, destIds, err := st.AcquireSector(ctx, s, storiface.FTNone, types, storiface.PathStorage, storiface.AcquireMove)
 	if err != nil {
 		return xerrors.Errorf("acquire dest storage: %w", err)
@@ -649,6 +665,7 @@ func (st *Local) MoveStorage(ctx context.Context, s storage.SectorRef, types sto
 var errPathNotFound = xerrors.Errorf("fsstat: path not found")
 
 func (st *Local) FsStat(ctx context.Context, id ID) (fsutil.FsStat, error) {
+	log.Infof("测试调度过程 local FsStat")
 	st.localLk.RLock()
 	defer st.localLk.RUnlock()
 
