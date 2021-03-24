@@ -7,6 +7,8 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -54,6 +56,18 @@ type LocalWorker struct {
 	session     uuid.UUID
 	testDisable int64
 	closing     chan struct{}
+}
+
+type WorkerInfo struct {
+	PreCommit1Max int64
+	PreCommit1Now int64
+	PreCommit2Max int64
+	PreCommit2Now int64
+	CommitMax     int64
+	CommitNow     int64
+	Group         string
+	StoreList     map[string]string
+	AcceptTasks   []string
 }
 
 func newLocalWorker(executor ExecutorFunc, wcfg WorkerConfig, store stores.Store, local *stores.Local, sindex stores.SectorIndex, ret storiface.WorkerReturn, cst *statestore.StateStore) *LocalWorker {
@@ -569,6 +583,36 @@ func (w *wctx) Err() error {
 
 func (w *wctx) Value(key interface{}) interface{} {
 	return w.vals.Value(key)
+}
+
+func (l *LocalWorker) GetWorkerInfo(ctx context.Context) WorkerInfo {
+	task := make([]string, 0)
+
+	for info := range l.acceptTasks {
+		task = append(task, sealtasks.TaskMean[info])
+	}
+
+	sort.Strings(task)
+
+	workerInfo := WorkerInfo{
+		PreCommit1Max: l.preCommit1Max,
+		PreCommit1Now: l.preCommit1Now,
+		PreCommit2Max: l.preCommit2Max,
+		PreCommit2Now: l.preCommit2Now,
+		CommitMax:     l.commitMax,
+		CommitNow:     l.commitNow,
+		AcceptTasks:   task,
+		Group:         l.group,
+	}
+
+	workerInfo.StoreList = make(map[string]string)
+
+	for id, taskType := range l.storeList.list {
+		key := "{" + strconv.FormatUint(uuid.UUID{}(id.Miner), 10) + "," + strconv.FormatUint(uuid.UUID{}(id.Number), 10) + "}"
+		workerInfo.StoreList[key] = taskType
+	}
+
+	return workerInfo
 }
 
 var _ context.Context = &wctx{}

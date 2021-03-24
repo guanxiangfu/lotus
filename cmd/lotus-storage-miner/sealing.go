@@ -117,6 +117,20 @@ var sealingWorkersCmd = &cli.Command{
 			for _, gpu := range stat.Info.Resources.GPUs {
 				fmt.Printf("\tGPU: %s\n", color.New(gpuCol).Sprintf("%s, %sused", gpu, gpuUse))
 			}
+
+			Info, err := nodeApi.GetWorker(ctx)
+			if err != nil {
+				return err
+			}
+			if _, ok := Info[stat.id]; ok {
+				fmt.Printf("\tGroup: %v\n", color.RedString(Info[stat.id].Group))
+				fmt.Printf("\tAcceptTasks: %v\n", Info[stat.id].AcceptTasks)
+				fmt.Printf("\tPreCommit1Max: %d\tPreCommit2Max: %d\tCommitMax: %d\n", Info[stat.id].PreCommit1Max, Info[stat.id].PreCommit2Max, Info[stat.id].CommitMax)
+				fmt.Printf("\tPreCommit1Now: %d\tPreCommit2Now: %d\tCommitNow: %d\n", Info[stat.id].PreCommit1Now, Info[stat.id].PreCommit2Now, Info[stat.id].CommitNow)
+				for ID, task := range Info[stat.id].StoreList {
+					fmt.Printf("\tProcessing: %s \t%s\n", color.BlueString(ID), color.RedString(task))
+				}
+			}
 		}
 
 		return nil

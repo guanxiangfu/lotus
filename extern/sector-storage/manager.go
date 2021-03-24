@@ -44,6 +44,8 @@ type Worker interface {
 	Session(context.Context) (uuid.UUID, error)
 
 	Close() error // TODO: do we need this?
+
+	GetWorkerInfo(ctx context.Context) WorkerInfo
 }
 
 type SectorManager interface {

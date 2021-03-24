@@ -446,7 +446,7 @@ func (sh *scheduler) trySched() {
 
 	wg.Wait()
 
-	log.Debugf("SCHED windows: %+v", windows)
+	log.Debugf("SCHED windows: %+v", len(windows))
 	log.Debugf("SCHED Acceptable win: %+v", acceptableWindows)
 
 	// Step 2

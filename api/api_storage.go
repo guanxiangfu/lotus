@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	sectorstorage "github.com/filecoin-project/lotus/extern/sector-storage"
 	"time"
 
 	"github.com/google/uuid"
@@ -88,6 +89,7 @@ type StorageMiner interface {
 	WorkerStats(context.Context) (map[uuid.UUID]storiface.WorkerStats, error)
 	WorkerJobs(context.Context) (map[uuid.UUID][]storiface.WorkerJob, error)
 	storiface.WorkerReturn
+	GetWorker(ctx context.Context) (map[uuid.UUID]sectorstorage.WorkerInfo, error)
 
 	// SealingSchedDiag dumps internal sealing scheduler state
 	SealingSchedDiag(ctx context.Context, doSched bool) (interface{}, error)

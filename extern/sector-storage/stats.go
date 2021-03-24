@@ -1,6 +1,7 @@
 package sectorstorage
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -90,5 +91,18 @@ func (m *Manager) WorkerJobs() map[uuid.UUID][]storiface.WorkerJob {
 		})
 	}
 
+	return out
+}
+
+func (m *Manager) GetWorker(ctx context.Context) map[uuid.UUID]WorkerInfo {
+	m.sched.workersLk.Lock()
+	defer m.sched.workersLk.Unlock()
+
+	out := map[uuid.UUID]WorkerInfo{}
+
+	for id, handle := range m.sched.workers {
+		info := handle.workerRpc.GetWorkerInfo(ctx)
+		out[uuid.UUID{}(id)] = info
+	}
 	return out
 }
